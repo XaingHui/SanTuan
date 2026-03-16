@@ -1,0 +1,44 @@
+name: santuan
+description: Santuan Desktop Pet - An AI-powered emotional companion
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 内部包
+  platform_shell:
+    path: ../packages/platform_shell
+  pet_renderer:
+    path: ../packages/pet_renderer
+  animation_engine:
+    path: ../packages/animation_engine
+  emotion_bridge:
+    path: ../packages/emotion_bridge
+  ui_overlay:
+    path: ../packages/ui_overlay
+
+  # 依赖注入
+  get_it: ^8.0.3
+  injectable: ^2.5.0
+
+  # 状态管理
+  flutter_riverpod: ^2.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  injectable_generator: ^2.7.0
+  build_runner: ^2.4.14
+
+flutter:
+  uses-material-design: true
+  assets:
+    - ../assets/characters/
+    - ../assets/mock_data/

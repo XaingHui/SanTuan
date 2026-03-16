@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RLEpisode",
+  "description": "强化学习训练数据 — 一个完整交互回合",
+  "type": "object",
+  "required": ["type", "episode_id", "steps"],
+  "properties": {
+    "type": { "const": "rl_episode" },
+    "episode_id": { "type": "string" },
+    "user_id_hash": { "type": "string", "description": "匿名用户哈希，不可逆" },
+    "session_start": { "type": "number" },
+    "session_end": { "type": "number" },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t", "state", "action", "reward"],
+        "properties": {
+          "t": { "type": "integer", "description": "步骤序号" },
+          "state": {
+            "type": "object",
+            "description": "观测状态 (5维数据)",
+            "properties": {
+              "emotion_vector": { "type": "array", "items": { "type": "number" }, "minItems": 7, "maxItems": 7 },
+              "arousal": { "type": "number" },
+              "valence": { "type": "number" },
+              "pet_mood": { "type": "string" },
+              "pet_personality": { "type": "array", "items": { "type": "number" } },
+              "time_of_day": { "type": "string", "enum": ["morning", "afternoon", "evening", "night"] },
+              "session_minute": { "type": "number" },
+              "interaction_density": { "type": "number", "description": "近 1 分钟交互频率" }
+            }
+          },
+          "action": {
+            "type": "object",
+            "description": "宠物执行的动作",
+            "properties": {
+              "animation": { "type": "string" },
+              "speech": { "type": "string" },
+              "personality_shift": { "type": "array", "items": { "type": "number" } }
+            }
+          },
+          "reward": {
+            "type": "object",
+            "description": "奖励信号",
+            "properties": {
+              "engagement_delta": { "type": "number" },
+              "emotion_improvement": { "type": "number" },
+              "explicit_feedback": { "type": ["number", "null"], "description": "+1 点赞 / -1 踩 / null 无反馈" },
+              "session_retention": { "type": "number" },
+              "annoyance_signal": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

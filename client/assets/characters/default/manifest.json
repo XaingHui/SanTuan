@@ -1,0 +1,31 @@
+{
+  "id": "default_cat",
+  "name": "Placeholder Cat",
+  "version": "0.1.0",
+  "renderer": "rive",
+  "model": "placeholder.riv",
+  "thumbnail": "thumb.png",
+  "animations": {
+    "idle_breathe": "idle_breathe",
+    "happy_dance": "happy_dance",
+    "sad_droop": "sad_droop",
+    "angry_stomp": "angry_stomp",
+    "surprise_jump": "surprise_jump",
+    "fear_shake": "fear_shake",
+    "disgust_turn": "disgust_turn",
+    "talk_bounce": "talk_bounce",
+    "sleep_zzz": "sleep_zzz",
+    "pet_react": "pet_react"
+  },
+  "emotion_morph_targets": {
+    "smile": "morph_smile",
+    "frown": "morph_frown",
+    "blink": "morph_blink"
+  },
+  "hit_box": {
+    "x": 0,
+    "y": 0,
+    "width": 200,
+    "height": 280
+  }
+}

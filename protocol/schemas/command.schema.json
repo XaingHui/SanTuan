@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnimationCommand",
+  "description": "动画指令 — AI 服务 / 用户交互 → 动画引擎",
+  "type": "object",
+  "required": ["type", "id", "action", "target_state", "params"],
+  "properties": {
+    "type": { "const": "animation_command" },
+    "id": { "type": "string" },
+    "action": { "type": "string", "enum": ["transition", "play_once", "queue", "interrupt"] },
+    "target_state": { "type": "string", "description": "目标动画状态名" },
+    "params": {
+      "type": "object",
+      "properties": {
+        "blend_duration_ms": { "type": "integer", "default": 300, "description": "过渡混合时长(ms)" },
+        "intensity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+        "loop": { "type": "boolean", "default": false },
+        "layer": { "type": "string", "enum": ["emotion", "gesture", "idle", "override"], "default": "emotion" },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 10, "default": 5 }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "enum": ["emotion_stream", "user_click", "gemini", "timer"] },
+        "emotion_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["source"]
+    }
+  }
+}

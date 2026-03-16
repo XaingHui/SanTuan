@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClientEvent",
+  "description": "客户端事件上报 — Flutter → AI 服务",
+  "type": "object",
+  "required": ["type", "timestamp", "event"],
+  "properties": {
+    "type": { "const": "client_event" },
+    "timestamp": { "type": "number" },
+    "event": {
+      "type": "string",
+      "enum": ["pet_clicked", "pet_dragged", "menu_opened", "chat_sent", "character_changed", "session_start", "session_end"]
+    },
+    "payload": {
+      "type": "object",
+      "description": "事件附加数据，结构因 event 类型而异",
+      "properties": {
+        "click_position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "current_animation": { "type": "string" },
+        "current_emotion": { "type": "string" },
+        "session_duration_sec": { "type": "number" },
+        "message_text": { "type": "string" },
+        "character_id": { "type": "string" }
+      }
+    }
+  }
+}

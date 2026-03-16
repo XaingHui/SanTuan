@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmotionFrame",
+  "description": "单帧情绪数据 — AI 感知服务 → Flutter 客户端",
+  "type": "object",
+  "required": ["type", "timestamp", "frame_id", "emotions", "dominant", "confidence", "face_detected", "arousal", "valence"],
+  "properties": {
+    "type": { "const": "emotion_frame" },
+    "timestamp": { "type": "number", "description": "Unix 时间戳（秒，含小数）" },
+    "frame_id": { "type": "integer" },
+    "emotions": {
+      "type": "object",
+      "description": "7 维情绪向量，值域 [0, 1]",
+      "properties": {
+        "happy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sad": { "type": "number", "minimum": 0, "maximum": 1 },
+        "angry": { "type": "number", "minimum": 0, "maximum": 1 },
+        "surprise": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fear": { "type": "number", "minimum": 0, "maximum": 1 },
+        "disgust": { "type": "number", "minimum": 0, "maximum": 1 },
+        "neutral": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["happy", "sad", "angry", "surprise", "fear", "disgust", "neutral"]
+    },
+    "dominant": { "type": "string", "enum": ["happy", "sad", "angry", "surprise", "fear", "disgust", "neutral"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "face_detected": { "type": "boolean" },
+    "arousal": { "type": "number", "minimum": -1, "maximum": 1, "description": "唤醒度" },
+    "valence": { "type": "number", "minimum": -1, "maximum": 1, "description": "效价" }
+  }
+}

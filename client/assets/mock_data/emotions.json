@@ -1,0 +1,35 @@
+[
+  {
+    "type": "emotion_frame",
+    "timestamp": 1710000000.0,
+    "frame_id": 1,
+    "emotions": {"happy": 0.8, "sad": 0.02, "angry": 0.01, "surprise": 0.05, "fear": 0.01, "disgust": 0.01, "neutral": 0.1},
+    "dominant": "happy",
+    "confidence": 0.92,
+    "face_detected": true,
+    "arousal": 0.7,
+    "valence": 0.8
+  },
+  {
+    "type": "emotion_frame",
+    "timestamp": 1710000001.0,
+    "frame_id": 2,
+    "emotions": {"happy": 0.3, "sad": 0.5, "angry": 0.02, "surprise": 0.01, "fear": 0.02, "disgust": 0.01, "neutral": 0.14},
+    "dominant": "sad",
+    "confidence": 0.88,
+    "face_detected": true,
+    "arousal": 0.3,
+    "valence": -0.4
+  },
+  {
+    "type": "emotion_frame",
+    "timestamp": 1710000002.0,
+    "frame_id": 3,
+    "emotions": {"happy": 0.1, "sad": 0.05, "angry": 0.02, "surprise": 0.01, "fear": 0.01, "disgust": 0.01, "neutral": 0.8},
+    "dominant": "neutral",
+    "confidence": 0.95,
+    "face_detected": true,
+    "arousal": 0.1,
+    "valence": 0.05
+  }
+]
