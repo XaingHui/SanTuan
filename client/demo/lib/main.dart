@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'pet_sprite.dart';
 
@@ -38,7 +39,11 @@ class PetStage extends StatefulWidget {
 class _PetStageState extends State<PetStage> {
   String _mood = 'idle';
   bool _showControls = false;
-  bool _useCustom = false; // 是否检测到用户自定义图片
+  bool _useCustom = false;
+  double _scale = 1.0; // 宠物缩放比例 0.5 ~ 2.5
+
+  static const _minScale = 0.5;
+  static const _maxScale = 2.5;
 
   final moods = ['idle', 'happy', 'love', 'sleepy', 'surprised', 'angry'];
 
@@ -62,31 +67,53 @@ class _PetStageState extends State<PetStage> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _showControls = true),
-      onExit: (_) => setState(() => _showControls = false),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          GestureDetector(
-            onTap: _cycleMood,
-            onSecondaryTapUp: (d) => _showMenu(context, d),
-            child: PetSprite(
-              mood: _mood,
-              customDir: _useCustom ? _userCharDir : null,
+    return Listener(
+      // 鼠标滚轮缩放
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          setState(() {
+            _scale -= event.scrollDelta.dy * 0.002;
+            _scale = _scale.clamp(_minScale, _maxScale);
+          });
+        }
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _showControls = true),
+        onExit: (_) => setState(() => _showControls = false),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: _cycleMood,
+              onSecondaryTapUp: (d) => _showMenu(context, d),
+              // 双指捏合缩放
+              onScaleUpdate: (details) {
+                if (details.pointerCount >= 2) {
+                  setState(() {
+                    _scale = (_scale * details.scale).clamp(_minScale, _maxScale);
+                  });
+                }
+              },
+              child: Transform.scale(
+                scale: _scale,
+                child: PetSprite(
+                  mood: _mood,
+                  customDir: _useCustom ? _userCharDir : null,
+                ),
+              ),
             ),
-          ),
-          // 悬浮控制按钮
-          Positioned(
-            top: -6,
-            right: -6,
-            child: AnimatedOpacity(
-              opacity: _showControls ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: _buildButtons(),
+            // 悬浮控制按钮
+            Positioned(
+              top: -6,
+              right: -6,
+              child: AnimatedOpacity(
+                opacity: _showControls ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: _buildButtons(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -101,6 +128,8 @@ class _PetStageState extends State<PetStage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _btn(Icons.remove, '缩小', () => _adjustScale(-0.15)),
+          _btn(Icons.add, '放大', () => _adjustScale(0.15)),
           _btn(Icons.emoji_emotions, '表情', _cycleMood),
           _btn(Icons.folder_open, '导入表情', _openCharDir),
           _btn(Icons.refresh, '刷新', _checkCustomImages),
@@ -122,6 +151,10 @@ class _PetStageState extends State<PetStage> {
         ),
       ),
     );
+  }
+
+  void _adjustScale(double delta) {
+    setState(() => _scale = (_scale + delta).clamp(_minScale, _maxScale));
   }
 
   /// 打开 Finder 到角色目录，让用户放入 GIF

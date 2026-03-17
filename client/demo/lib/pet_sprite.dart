@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
 
-/// 宠物精灵 — 支持多种图片来源 + 活体动画
+/// 宠物精灵 — 支持多种图片来源
 ///
 /// 图片加载优先级（从高到低）：
 /// 1. 用户自定义目录 (customDir) — 用户上传的 GIF/PNG/WebP
@@ -11,134 +10,40 @@ import 'package:flutter/material.dart';
 ///
 /// 支持格式: GIF(动图) / PNG / WebP(动图) / APNG
 /// 后续扩展: MP4 需要 video_player 包，3D 模型用 Thermion
-class PetSprite extends StatefulWidget {
+class PetSprite extends StatelessWidget {
   final String mood;
-  final String character;     // 角色名，对应 assets/pet/{character}/ 目录
-  final String? customDir;    // 用户自定义图片目录（绝对路径），优先于 assets
+  final String character;
+  final String? customDir;
 
   const PetSprite({super.key, this.mood = 'idle', this.character = 'mochi', this.customDir});
 
   @override
-  State<PetSprite> createState() => _PetSpriteState();
-}
-
-class _PetSpriteState extends State<PetSprite> with TickerProviderStateMixin {
-  late AnimationController _breathCtrl;   // 呼吸 (持续)
-  late AnimationController _swayCtrl;     // 摇摆 (持续)
-  late AnimationController _bounceCtrl;   // 弹跳 (切换心情时)
-  late AnimationController _idleActCtrl;  // 随机小动作 (持续)
-
-  final _random = Random();
-  double _idleTilt = 0; // 随机歪头角度
-
-  @override
-  void initState() {
-    super.initState();
-
-    // 呼吸：2s 周期，缩放
-    _breathCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))
-      ..repeat(reverse: true);
-
-    // 左右摇摆：3s 周期
-    _swayCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))
-      ..repeat(reverse: true);
-
-    // 弹跳：切换时触发
-    _bounceCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-
-    // 随机小动作：每 3-6 秒触发一次
-    _idleActCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _scheduleIdleAction();
-  }
-
-  void _scheduleIdleAction() {
-    Future.delayed(Duration(milliseconds: 3000 + _random.nextInt(3000)), () {
-      if (!mounted) return;
-      setState(() {
-        _idleTilt = (_random.nextDouble() - 0.5) * 0.12; // -0.06 ~ 0.06 弧度
-      });
-      _idleActCtrl.forward(from: 0).then((_) {
-        if (mounted) {
-          setState(() => _idleTilt = 0);
-          _scheduleIdleAction();
-        }
-      });
-    });
-  }
-
-  @override
-  void didUpdateWidget(PetSprite old) {
-    super.didUpdateWidget(old);
-    if (old.mood != widget.mood) {
-      _bounceCtrl.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _breathCtrl.dispose();
-    _swayCtrl.dispose();
-    _bounceCtrl.dispose();
-    _idleActCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_breathCtrl, _swayCtrl, _bounceCtrl, _idleActCtrl]),
-      builder: (context, child) {
-        final breathT = _breathCtrl.value;
-        final swayT = _swayCtrl.value;
-        final bounceT = _bounceCtrl.value;
-        final idleT = _idleActCtrl.value;
-
-        // 呼吸缩放
-        final scale = 1.0 + sin(breathT * pi) * 0.025;
-        // 左右摇摆
-        final swayAngle = sin(swayT * pi * 2) * 0.03;
-        // 弹跳位移
-        final bounceY = -sin(bounceT * pi) * 18.0;
-        // 随机歪头
-        final tilt = _idleTilt * sin(idleT * pi);
-
-        return Transform.translate(
-          offset: Offset(0, bounceY),
-          child: Transform.rotate(
-            angle: swayAngle + tilt,
-            child: Transform.scale(
-              scale: scale,
-              child: _buildCharacter(),
-            ),
-          ),
-        );
-      },
-    );
+    return _buildCharacter();
   }
 
   Widget _buildCharacter() {
-    // 支持的图片格式（按优先级）
     const exts = ['gif', 'webp', 'png', 'jpg'];
 
-    // 1. 优先从用户自定义目录加载（用户上传的表情包）
-    if (widget.customDir != null) {
+    // 1. 优先从用户自定义目录加载
+    if (customDir != null) {
       for (final ext in exts) {
-        final file = File('${widget.customDir}/${widget.mood}.$ext');
+        final file = File('$customDir/$mood.$ext');
         if (file.existsSync()) {
           return Image.file(
             file,
             width: 220,
             height: 260,
             fit: BoxFit.contain,
-            gaplessPlayback: true, // 切换时不闪烁
+            gaplessPlayback: true,
           );
         }
       }
     }
 
     // 2. 从内置 assets 加载
-    final base = 'assets/pet/${widget.character}/${widget.mood}';
-    return _AssetImageChain(basePath: base, exts: exts, mood: widget.mood);
+    final base = 'assets/pet/$character/$mood';
+    return _AssetImageChain(basePath: base, exts: exts, mood: mood);
   }
 }
 
