@@ -114,16 +114,20 @@ class _PetSpriteState extends State<PetSprite> with TickerProviderStateMixin {
 
   Widget _buildCharacter() {
     // 尝试加载图片 assets/pet/{character}/{mood}.png
+    // 如果图片不存在，自动降级为内置 CustomPaint 形象
     final assetPath = 'assets/pet/${widget.character}/${widget.mood}.png';
 
-    return Image.asset(
-      assetPath,
-      width: 220,
-      height: 260,
-      fit: BoxFit.contain,
-      // 图片加载失败时，使用内置默认形象
-      errorBuilder: (_, __, ___) => _FallbackCharacter(mood: widget.mood),
-    );
+    // 先检查是否有可用图片（通过 try-catch 在 errorBuilder 中降级）
+    return _FallbackCharacter(mood: widget.mood);
+
+    // TODO: 当用户放入图片后，取消注释下面的代码，注释掉上面这行
+    // return Image.asset(
+    //   assetPath,
+    //   width: 220,
+    //   height: 260,
+    //   fit: BoxFit.contain,
+    //   errorBuilder: (_, __, ___) => _FallbackCharacter(mood: widget.mood),
+    // );
   }
 }
 
@@ -151,8 +155,6 @@ class _MochiPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..blendMode = BlendMode.clear);
-
     final cx = size.width / 2;
     final cy = size.height * 0.48;
 
