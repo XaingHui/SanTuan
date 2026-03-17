@@ -1,18 +1,22 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-/// 宠物精灵 — 图片驱动 + 活体动画
+/// 宠物精灵 — 支持多种图片来源 + 活体动画
 ///
-/// 设计原则：
-/// 1. 一个类适配所有角色 — 换图片就换角色，不用写新类
-/// 2. 图片放 assets/pet/{角色名}/{心情}.png
-/// 3. 即使没有图片，也有内置的 CustomPaint 默认形象
-/// 4. 通过 Transform 动画让角色"活"起来：呼吸、摇摆、弹跳
+/// 图片加载优先级（从高到低）：
+/// 1. 用户自定义目录 (customDir) — 用户上传的 GIF/PNG/WebP
+/// 2. 内置 assets — 开发者预置的角色包
+/// 3. CustomPaint fallback — 兜底的内置形象
+///
+/// 支持格式: GIF(动图) / PNG / WebP(动图) / APNG
+/// 后续扩展: MP4 需要 video_player 包，3D 模型用 Thermion
 class PetSprite extends StatefulWidget {
   final String mood;
-  final String character; // 角色名，对应 assets/pet/{character}/ 目录
+  final String character;     // 角色名，对应 assets/pet/{character}/ 目录
+  final String? customDir;    // 用户自定义图片目录（绝对路径），优先于 assets
 
-  const PetSprite({super.key, this.mood = 'idle', this.character = 'mochi'});
+  const PetSprite({super.key, this.mood = 'idle', this.character = 'mochi', this.customDir});
 
   @override
   State<PetSprite> createState() => _PetSpriteState();
@@ -113,21 +117,63 @@ class _PetSpriteState extends State<PetSprite> with TickerProviderStateMixin {
   }
 
   Widget _buildCharacter() {
-    // 尝试加载图片 assets/pet/{character}/{mood}.png
-    // 如果图片不存在，自动降级为内置 CustomPaint 形象
-    final assetPath = 'assets/pet/${widget.character}/${widget.mood}.png';
+    // 支持的图片格式（按优先级）
+    const exts = ['gif', 'webp', 'png', 'jpg'];
 
-    // 先检查是否有可用图片（通过 try-catch 在 errorBuilder 中降级）
-    return _FallbackCharacter(mood: widget.mood);
+    // 1. 优先从用户自定义目录加载（用户上传的表情包）
+    if (widget.customDir != null) {
+      for (final ext in exts) {
+        final file = File('${widget.customDir}/${widget.mood}.$ext');
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            width: 220,
+            height: 260,
+            fit: BoxFit.contain,
+            gaplessPlayback: true, // 切换时不闪烁
+          );
+        }
+      }
+    }
 
-    // TODO: 当用户放入图片后，取消注释下面的代码，注释掉上面这行
-    // return Image.asset(
-    //   assetPath,
-    //   width: 220,
-    //   height: 260,
-    //   fit: BoxFit.contain,
-    //   errorBuilder: (_, __, ___) => _FallbackCharacter(mood: widget.mood),
-    // );
+    // 2. 从内置 assets 加载
+    final base = 'assets/pet/${widget.character}/${widget.mood}';
+    return _AssetImageChain(basePath: base, exts: exts, mood: widget.mood);
+  }
+}
+
+/// 链式尝试多种格式的 asset 图片
+class _AssetImageChain extends StatelessWidget {
+  final String basePath;
+  final List<String> exts;
+  final String mood;
+  final int index;
+
+  const _AssetImageChain({
+    required this.basePath,
+    required this.exts,
+    required this.mood,
+    this.index = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (index >= exts.length) {
+      return _FallbackCharacter(mood: mood);
+    }
+    return Image.asset(
+      '$basePath.${exts[index]}',
+      width: 220,
+      height: 260,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => _AssetImageChain(
+        basePath: basePath,
+        exts: exts,
+        mood: mood,
+        index: index + 1,
+      ),
+    );
   }
 }
 

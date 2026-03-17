@@ -2,8 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'pet_sprite.dart';
 
+/// 用户自定义角色图片目录
+/// 用户把 GIF/PNG 放到这个目录，命名为 idle.gif / happy.gif / ... 即可
+final _userCharDir = '${Platform.environment['HOME']}/Santuan/characters/mochi';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 确保用户目录存在
+  Directory(_userCharDir).createSync(recursive: true);
   runApp(const SantuanDemo());
 }
 
@@ -32,8 +38,27 @@ class PetStage extends StatefulWidget {
 class _PetStageState extends State<PetStage> {
   String _mood = 'idle';
   bool _showControls = false;
+  bool _useCustom = false; // 是否检测到用户自定义图片
 
   final moods = ['idle', 'happy', 'love', 'sleepy', 'surprised', 'angry'];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCustomImages();
+  }
+
+  /// 检查用户目录下是否有图片
+  void _checkCustomImages() {
+    final dir = Directory(_userCharDir);
+    if (dir.existsSync()) {
+      final hasImages = dir.listSync().any((f) =>
+          f.path.endsWith('.gif') ||
+          f.path.endsWith('.png') ||
+          f.path.endsWith('.webp'));
+      setState(() => _useCustom = hasImages);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +71,10 @@ class _PetStageState extends State<PetStage> {
           GestureDetector(
             onTap: _cycleMood,
             onSecondaryTapUp: (d) => _showMenu(context, d),
-            child: PetSprite(mood: _mood),
+            child: PetSprite(
+              mood: _mood,
+              customDir: _useCustom ? _userCharDir : null,
+            ),
           ),
           // 悬浮控制按钮
           Positioned(
@@ -74,6 +102,8 @@ class _PetStageState extends State<PetStage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _btn(Icons.emoji_emotions, '表情', _cycleMood),
+          _btn(Icons.folder_open, '导入表情', _openCharDir),
+          _btn(Icons.refresh, '刷新', _checkCustomImages),
           _btn(Icons.close, '退出', () => exit(0)),
         ],
       ),
@@ -94,6 +124,11 @@ class _PetStageState extends State<PetStage> {
     );
   }
 
+  /// 打开 Finder 到角色目录，让用户放入 GIF
+  void _openCharDir() {
+    Process.run('open', [_userCharDir]);
+  }
+
   void _cycleMood() {
     setState(() {
       final idx = moods.indexOf(_mood);
@@ -104,22 +139,36 @@ class _PetStageState extends State<PetStage> {
   void _showMenu(BuildContext context, TapUpDetails d) async {
     final result = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(d.globalPosition.dx, d.globalPosition.dy, d.globalPosition.dx + 1, d.globalPosition.dy + 1),
+      position: RelativeRect.fromLTRB(
+        d.globalPosition.dx, d.globalPosition.dy,
+        d.globalPosition.dx + 1, d.globalPosition.dy + 1,
+      ),
       color: Colors.white.withValues(alpha: 0.95),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       items: [
         for (final m in moods)
           PopupMenuItem(value: m, child: Row(children: [
-            Icon(m == _mood ? Icons.check_circle : Icons.circle_outlined, size: 15, color: m == _mood ? Colors.blue : Colors.grey),
+            Icon(m == _mood ? Icons.check_circle : Icons.circle_outlined,
+                size: 15, color: m == _mood ? Colors.blue : Colors.grey),
             const SizedBox(width: 8),
             Text(_moodLabel(m)),
           ])),
         const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'import',
+          child: Row(children: [
+            Icon(Icons.folder_open, size: 15, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text('导入表情包...'),
+          ]),
+        ),
         PopupMenuItem(value: 'quit', child: Text('退出')),
       ],
     );
     if (result == 'quit') {
       exit(0);
+    } else if (result == 'import') {
+      _openCharDir();
     } else if (result != null) {
       setState(() => _mood = result);
     }
