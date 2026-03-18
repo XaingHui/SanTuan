@@ -4,7 +4,6 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'pet_sprite.dart';
 
 /// 悬浮窗入口 - Android 专用
-/// 这个函数由 Android native 调用，运行在独立的 Flutter 引擎中
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,9 +22,15 @@ class OverlayPet extends StatefulWidget {
 
 class _OverlayPetState extends State<OverlayPet> {
   String _mood = 'idle';
+  bool _showControls = false;
+  bool _locked = false;
+  double _scale = 1.0;
+
+  static const _minScale = 0.5;
+  static const _maxScale = 2.5;
+
   final _moods = ['idle', 'happy', 'love', 'sleepy', 'surprised', 'angry'];
 
-  // 用户自定义表情目录（Android 外部存储）
   final String _customDir = '/storage/emulated/0/Santuan/characters/mochi';
   bool _useCustom = false;
 
@@ -53,22 +58,82 @@ class _OverlayPetState extends State<OverlayPet> {
     return Material(
       color: Colors.transparent,
       child: GestureDetector(
-        onTap: _cycleMood,
-        onLongPress: () async {
-          // 长按关闭悬浮窗
-          await FlutterOverlayWindow.closeOverlay();
+        onTap: () {
+          if (_showControls) {
+            _cycleMood();
+          } else {
+            setState(() => _showControls = true);
+          }
         },
-        child: Container(
-          color: Colors.transparent,
-          child: Center(
-            child: PetSprite(
-              mood: _mood,
-              customDir: _useCustom ? _customDir : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 控制按钮栏（顶部）
+            if (_showControls) _buildButtons(),
+            // 宠物本体
+            Expanded(
+              child: Center(
+                child: Transform.scale(
+                  scale: _scale,
+                  child: PetSprite(
+                    mood: _mood,
+                    customDir: _useCustom ? _customDir : null,
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildButtons() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        children: [
+          _btn(Icons.remove, () => _adjustScale(-0.15)),
+          _btn(Icons.add, () => _adjustScale(0.15)),
+          _btn(Icons.emoji_emotions, _cycleMood),
+          _btn(_locked ? Icons.lock : Icons.lock_open, _toggleLock),
+          _btn(Icons.keyboard_arrow_up, () {
+            setState(() => _showControls = false);
+          }),
+          _btn(Icons.close, () async {
+            await FlutterOverlayWindow.closeOverlay();
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _btn(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Icon(icon, size: 14, color: Colors.white70),
+      ),
+    );
+  }
+
+  void _adjustScale(double delta) {
+    setState(() {
+      _scale = (_scale + delta).clamp(_minScale, _maxScale);
+    });
+  }
+
+  void _toggleLock() {
+    setState(() => _locked = !_locked);
+    final size = (300 * _scale).round().clamp(200, 800);
+    FlutterOverlayWindow.resizeOverlay(size, size, !_locked);
   }
 
   void _cycleMood() {
