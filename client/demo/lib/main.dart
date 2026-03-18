@@ -3,22 +3,21 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'pet_sprite.dart';
 
+// 悬浮窗入口点 - 必须在 main library 中可见
+export 'overlay_main.dart';
+
 /// 获取用户角色目录（跨平台）
-/// - 桌面: ~/Santuan/characters/mochi
-/// - 移动端: 应用文档目录/characters/mochi
 Future<String> _getCharDir() async {
   if (Platform.isAndroid || Platform.isIOS) {
     final docs = await getApplicationDocumentsDirectory();
     return '${docs.path}/characters/mochi';
   }
-  // 桌面平台
   return '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']}/Santuan/characters/mochi';
 }
 
-/// 是否为桌面平台
 bool get isDesktop => Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
 void main() async {
@@ -26,18 +25,125 @@ void main() async {
   final charDir = await _getCharDir();
   Directory(charDir).createSync(recursive: true);
 
-  if (isDesktop) {
-    await windowManager.ensureInitialized();
-    await windowManager.setAlwaysOnTop(true);
-    await windowManager.setSkipTaskbar(false);
-    await windowManager.setSize(const Size(300, 360));
-    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-    await windowManager.show();
-    await windowManager.focus();
+  if (Platform.isAndroid) {
+    // Android: 显示控制面板，用户点击按钮启动悬浮窗宠物
+    runApp(AndroidControlPanel(charDir: charDir));
+  } else {
+    // 桌面: 直接显示宠物（透明窗口由原生代码处理）
+    runApp(SantuanDemo(charDir: charDir));
+  }
+}
+
+// ══════════════════════════════════════════
+// Android 控制面板
+// ══════════════════════════════════════════
+
+class AndroidControlPanel extends StatefulWidget {
+  final String charDir;
+  const AndroidControlPanel({super.key, required this.charDir});
+
+  @override
+  State<AndroidControlPanel> createState() => _AndroidControlPanelState();
+}
+
+class _AndroidControlPanelState extends State<AndroidControlPanel> {
+  bool _overlayActive = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.pink,
+        useMaterial3: true,
+      ),
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                // 预览宠物
+                SizedBox(
+                  height: 200,
+                  child: PetSprite(mood: 'happy'),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '三团桌面宠物',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '点击下方按钮，把宠物放到桌面上',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                // 启动/停止悬浮窗
+                FilledButton.icon(
+                  onPressed: _toggleOverlay,
+                  icon: Icon(_overlayActive ? Icons.pets : Icons.rocket_launch),
+                  label: Text(_overlayActive ? '收回宠物' : '放出宠物'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(200, 56),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_overlayActive)
+                  Text(
+                    '宠物已在桌面上！\n点击宠物切换表情，长按收回',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.green[700], fontSize: 14),
+                  ),
+                const Spacer(),
+                Text(
+                  '提示：需要授予「显示在其他应用上层」权限',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  runApp(SantuanDemo(charDir: charDir));
+  Future<void> _toggleOverlay() async {
+    if (_overlayActive) {
+      // 关闭悬浮窗
+      await FlutterOverlayWindow.closeOverlay();
+      setState(() => _overlayActive = false);
+    } else {
+      // 检查并请求悬浮窗权限
+      final hasPermission = await FlutterOverlayWindow.isPermissionGranted();
+      if (!hasPermission) {
+        await FlutterOverlayWindow.requestPermission();
+        // 等用户从设置页回来后再检查
+        final granted = await FlutterOverlayWindow.isPermissionGranted();
+        if (!granted) return;
+      }
+      // 启动悬浮窗
+      await FlutterOverlayWindow.showOverlay(
+        height: 300,
+        width: 300,
+        alignment: OverlayAlignment.center,
+        enableDrag: true,
+      );
+      setState(() => _overlayActive = true);
+    }
+  }
 }
+
+// ══════════════════════════════════════════
+// 桌面端 - 直接显示宠物
+// ══════════════════════════════════════════
 
 class SantuanDemo extends StatelessWidget {
   final String charDir;
@@ -48,7 +154,7 @@ class SantuanDemo extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFFFFF0F5),
+        backgroundColor: Colors.transparent,
         body: Center(child: PetStage(charDir: charDir)),
       ),
     );
@@ -154,7 +260,7 @@ class _PetStageState extends State<PetStage> {
           _btn(Icons.remove, '缩小', () => _adjustScale(-0.15)),
           _btn(Icons.add, '放大', () => _adjustScale(0.15)),
           _btn(Icons.emoji_emotions, '表情', _cycleMood),
-          if (isDesktop) _btn(Icons.folder_open, '导入表情', _openCharDir),
+          _btn(Icons.folder_open, '导入表情', _openCharDir),
           _btn(Icons.refresh, '刷新', _checkCustomImages),
           _btn(Icons.close, '退出', _quit),
         ],
@@ -180,7 +286,6 @@ class _PetStageState extends State<PetStage> {
     setState(() => _scale = (_scale + delta).clamp(_minScale, _maxScale));
   }
 
-  /// 打开角色目录（仅桌面平台）
   void _openCharDir() {
     if (Platform.isMacOS) {
       Process.run('open', [widget.charDir]);
@@ -191,7 +296,6 @@ class _PetStageState extends State<PetStage> {
     }
   }
 
-  /// 跨平台退出
   void _quit() {
     if (isDesktop) {
       exit(0);
@@ -225,22 +329,11 @@ class _PetStageState extends State<PetStage> {
             Text(_moodLabel(m)),
           ])),
         const PopupMenuDivider(),
-        if (isDesktop)
-          PopupMenuItem(
-            value: 'import',
-            child: Row(children: [
-              Icon(Icons.folder_open, size: 15, color: Colors.orange),
-              const SizedBox(width: 8),
-              Text('导入表情包...'),
-            ]),
-          ),
         PopupMenuItem(value: 'quit', child: Text('退出')),
       ],
     );
     if (result == 'quit') {
       _quit();
-    } else if (result == 'import') {
-      _openCharDir();
     } else if (result != null) {
       setState(() => _mood = result);
     }
