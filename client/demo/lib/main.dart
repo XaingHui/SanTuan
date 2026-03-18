@@ -1,21 +1,35 @@
 import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'pet_sprite.dart';
 
-/// 用户自定义角色图片目录
-/// 用户把 GIF/PNG 放到这个目录，命名为 idle.gif / happy.gif / ... 即可
-final _userCharDir = '${Platform.environment['HOME']}/Santuan/characters/mochi';
+/// 获取用户角色目录（跨平台）
+/// - 桌面: ~/Santuan/characters/mochi
+/// - 移动端: 应用文档目录/characters/mochi
+Future<String> _getCharDir() async {
+  if (Platform.isAndroid || Platform.isIOS) {
+    final docs = await getApplicationDocumentsDirectory();
+    return '${docs.path}/characters/mochi';
+  }
+  // 桌面平台
+  return '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']}/Santuan/characters/mochi';
+}
+
+/// 是否为桌面平台
+bool get isDesktop => Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 确保用户目录存在
-  Directory(_userCharDir).createSync(recursive: true);
-  runApp(const SantuanDemo());
+  final charDir = await _getCharDir();
+  Directory(charDir).createSync(recursive: true);
+  runApp(SantuanDemo(charDir: charDir));
 }
 
 class SantuanDemo extends StatelessWidget {
-  const SantuanDemo({super.key});
+  final String charDir;
+  const SantuanDemo({super.key, required this.charDir});
 
   @override
   Widget build(BuildContext context) {
@@ -23,14 +37,15 @@ class SantuanDemo extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Center(child: PetStage()),
+        body: Center(child: PetStage(charDir: charDir)),
       ),
     );
   }
 }
 
 class PetStage extends StatefulWidget {
-  const PetStage({super.key});
+  final String charDir;
+  const PetStage({super.key, required this.charDir});
 
   @override
   State<PetStage> createState() => _PetStageState();
@@ -40,7 +55,7 @@ class _PetStageState extends State<PetStage> {
   String _mood = 'idle';
   bool _showControls = false;
   bool _useCustom = false;
-  double _scale = 1.0; // 宠物缩放比例 0.5 ~ 2.5
+  double _scale = 1.0;
 
   static const _minScale = 0.5;
   static const _maxScale = 2.5;
@@ -53,9 +68,8 @@ class _PetStageState extends State<PetStage> {
     _checkCustomImages();
   }
 
-  /// 检查用户目录下是否有图片
   void _checkCustomImages() {
-    final dir = Directory(_userCharDir);
+    final dir = Directory(widget.charDir);
     if (dir.existsSync()) {
       final hasImages = dir.listSync().any((f) =>
           f.path.endsWith('.gif') ||
@@ -68,7 +82,6 @@ class _PetStageState extends State<PetStage> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      // 鼠标滚轮缩放
       onPointerSignal: (event) {
         if (event is PointerScrollEvent) {
           setState(() {
@@ -86,7 +99,6 @@ class _PetStageState extends State<PetStage> {
             GestureDetector(
               onTap: _cycleMood,
               onSecondaryTapUp: (d) => _showMenu(context, d),
-              // 双指捏合缩放
               onScaleUpdate: (details) {
                 if (details.pointerCount >= 2) {
                   setState(() {
@@ -98,11 +110,10 @@ class _PetStageState extends State<PetStage> {
                 scale: _scale,
                 child: PetSprite(
                   mood: _mood,
-                  customDir: _useCustom ? _userCharDir : null,
+                  customDir: _useCustom ? widget.charDir : null,
                 ),
               ),
             ),
-            // 悬浮控制按钮
             Positioned(
               top: -6,
               right: -6,
@@ -131,9 +142,9 @@ class _PetStageState extends State<PetStage> {
           _btn(Icons.remove, '缩小', () => _adjustScale(-0.15)),
           _btn(Icons.add, '放大', () => _adjustScale(0.15)),
           _btn(Icons.emoji_emotions, '表情', _cycleMood),
-          _btn(Icons.folder_open, '导入表情', _openCharDir),
+          if (isDesktop) _btn(Icons.folder_open, '导入表情', _openCharDir),
           _btn(Icons.refresh, '刷新', _checkCustomImages),
-          _btn(Icons.close, '退出', () => exit(0)),
+          _btn(Icons.close, '退出', _quit),
         ],
       ),
     );
@@ -157,9 +168,24 @@ class _PetStageState extends State<PetStage> {
     setState(() => _scale = (_scale + delta).clamp(_minScale, _maxScale));
   }
 
-  /// 打开 Finder 到角色目录，让用户放入 GIF
+  /// 打开角色目录（仅桌面平台）
   void _openCharDir() {
-    Process.run('open', [_userCharDir]);
+    if (Platform.isMacOS) {
+      Process.run('open', [widget.charDir]);
+    } else if (Platform.isWindows) {
+      Process.run('explorer', [widget.charDir]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [widget.charDir]);
+    }
+  }
+
+  /// 跨平台退出
+  void _quit() {
+    if (isDesktop) {
+      exit(0);
+    } else {
+      SystemNavigator.pop();
+    }
   }
 
   void _cycleMood() {
@@ -187,19 +213,20 @@ class _PetStageState extends State<PetStage> {
             Text(_moodLabel(m)),
           ])),
         const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'import',
-          child: Row(children: [
-            Icon(Icons.folder_open, size: 15, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text('导入表情包...'),
-          ]),
-        ),
+        if (isDesktop)
+          PopupMenuItem(
+            value: 'import',
+            child: Row(children: [
+              Icon(Icons.folder_open, size: 15, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text('导入表情包...'),
+            ]),
+          ),
         PopupMenuItem(value: 'quit', child: Text('退出')),
       ],
     );
     if (result == 'quit') {
-      exit(0);
+      _quit();
     } else if (result == 'import') {
       _openCharDir();
     } else if (result != null) {
