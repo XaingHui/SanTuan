@@ -135,7 +135,8 @@ bool Win32Window::Create(const std::wstring& title,
   double scale_factor = dpi / 96.0;
 
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_POPUP,  // WS_POPUP = 无边框
+      window_class, title.c_str(),
+      WS_POPUP,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
@@ -143,22 +144,6 @@ bool Win32Window::Create(const std::wstring& title,
   if (!window) {
     return false;
   }
-
-  // ── 透明窗口 ──
-  // 设置分层窗口样式
-  LONG_PTR ex_style = GetWindowLongPtr(window, GWL_EXSTYLE);
-  SetWindowLongPtr(window, GWL_EXSTYLE, ex_style | WS_EX_LAYERED | WS_EX_TRANSPARENT);
-  // 启用透明（通过 DWM 实现像素级透明）
-  MARGINS margins = {-1};
-  DwmExtendFrameIntoClientArea(window, &margins);
-
-  // ── 窗口置顶 ──
-  SetWindowPos(window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-  // ── 不显示在任务栏 ──
-  // (桌面宠物不需要出现在任务栏)
-  LONG_PTR ex_style2 = GetWindowLongPtr(window, GWL_EXSTYLE);
-  SetWindowLongPtr(window, GWL_EXSTYLE, ex_style2 | WS_EX_TOOLWINDOW);
 
   UpdateTheme(window);
 
@@ -203,10 +188,10 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
-    // ── 支持鼠标拖拽窗口（无标题栏时） ──
+    // -- Support mouse drag for borderless window --
     case WM_NCHITTEST: {
-      // 让 Flutter 自己处理点击区域判断
-      // 如果 Flutter 不消费事件，返回 HTCAPTION 允许拖拽
+      // Let Flutter handle hit testing
+      // If Flutter does not consume the event, return HTCAPTION to allow dragging
       LRESULT result = DefWindowProc(hwnd, message, wparam, lparam);
       return result;
     }

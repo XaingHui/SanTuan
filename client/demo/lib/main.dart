@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:window_manager/window_manager.dart';
 import 'pet_sprite.dart';
 
 /// 获取用户角色目录（跨平台）
@@ -24,6 +25,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final charDir = await _getCharDir();
   Directory(charDir).createSync(recursive: true);
+
+  if (isDesktop) {
+    await windowManager.ensureInitialized();
+    await windowManager.setAlwaysOnTop(true);
+    await windowManager.setSkipTaskbar(false);
+    await windowManager.setSize(const Size(300, 360));
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    await windowManager.show();
+    await windowManager.focus();
+  }
+
   runApp(SantuanDemo(charDir: charDir));
 }
 
@@ -36,7 +48,7 @@ class SantuanDemo extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFFFF0F5),
         body: Center(child: PetStage(charDir: charDir)),
       ),
     );
@@ -115,8 +127,8 @@ class _PetStageState extends State<PetStage> {
               ),
             ),
             Positioned(
-              top: -6,
-              right: -6,
+              top: 4,
+              right: 4,
               child: AnimatedOpacity(
                 opacity: _showControls ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 200),
